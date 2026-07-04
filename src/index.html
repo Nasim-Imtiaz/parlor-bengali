@@ -464,6 +464,14 @@ const viewportWrap = $('viewportWrap');
 const waveformCanvas = $('waveform');
 const waveformCtx = waveformCanvas.getContext('2d');
 
+// ── Bengali UI strings (user-facing text only; keys/classes/console logs stay as-is) ──
+const BN = Object.freeze({
+  state: { loading: 'লোড হচ্ছে…', listening: 'শুনছি', processing: 'ভাবছি…', speaking: 'বলছি' },
+  status: { connected: 'সংযুক্ত', disconnected: 'সংযোগ বিচ্ছিন্ন', processing: 'প্রক্রিয়াকরণ হচ্ছে' },
+  camera: { on: 'ক্যামেরা চালু', off: 'ক্যামেরা বন্ধ' },
+  meta: { withCamera: 'ক্যামেরাসহ', llm: 'LLM', tts: 'TTS' },
+});
+
 let ws, mediaStream, myvad;
 let cameraEnabled = true;
 let audioCtx, currentSource;
@@ -567,8 +575,7 @@ function setState(newState) {
 
   // Update state indicator
   stateDot.className = `dot ${newState}`;
-  const labels = { loading: 'Loading...', listening: 'Listening', processing: 'Thinking...', speaking: 'Speaking' };
-  stateText.textContent = labels[newState] || newState;
+  stateText.textContent = BN.state[newState] || newState;
 
   // Update viewport glow class
   viewportWrap.className = `viewport-wrap ${newState}`;
@@ -613,11 +620,11 @@ function setState(newState) {
 function connect() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
   ws.onopen = () => {
-    setStatus('connected', 'Connected');
+    setStatus('connected', BN.status.connected);
     if (state !== 'loading') setState('listening');
   };
   ws.onclose = () => {
-    setStatus('disconnected', 'Disconnected');
+    setStatus('disconnected', BN.status.disconnected);
     setTimeout(connect, 2000);
   };
   ws.onmessage = ({ data }) => {
@@ -631,7 +638,7 @@ function connect() {
           lastUserMsg.innerHTML = `${msg.transcription}${meta ? meta.outerHTML : ''}`;
         }
       }
-      addMessage('assistant', msg.text, `LLM ${msg.llm_time}s`);
+      addMessage('assistant', msg.text, `${BN.meta.llm} ${msg.llm_time}s`);
     } else if (msg.type === 'audio_start') {
       if (ignoreIncomingAudio) return;
       streamSampleRate = msg.sample_rate || 24000;
@@ -648,7 +655,7 @@ function connect() {
       }
       streamTtsTime = msg.tts_time;
       const meta = messagesDiv.querySelector('.msg.assistant:last-child .meta');
-      if (meta) meta.textContent += ` · TTS ${msg.tts_time}s`;
+      if (meta) meta.textContent += ` · ${BN.meta.tts} ${msg.tts_time}s`;
     }
   };
 }
@@ -714,8 +721,8 @@ function handleSpeechEnd(audio) {
   const imageBase64 = captureFrame();
 
   setState('processing');
-  setStatus('processing', 'Processing');
-  addMessage('user', '<span class="loading-dots"><span></span><span></span><span></span></span>', imageBase64 ? 'with camera' : '');
+  setStatus('processing', BN.status.processing);
+  addMessage('user', '<span class="loading-dots"><span></span><span></span><span></span></span>', imageBase64 ? BN.meta.withCamera : '');
 
   const payload = { audio: wavBase64 };
   if (imageBase64) payload.image = imageBase64;
@@ -804,7 +811,7 @@ function queueAudioChunk(base64Pcm) {
     if (streamSources.length === 0 && state === 'speaking') {
       currentSource = null;
       setState('listening');
-      setStatus('connected', 'Connected');
+      setStatus('connected', BN.status.connected);
     }
   };
 }
@@ -821,7 +828,7 @@ function addMessage(role, text, meta) {
 cameraToggle.addEventListener('click', () => {
   cameraEnabled = !cameraEnabled;
   cameraToggle.classList.toggle('active', cameraEnabled);
-  cameraToggle.textContent = cameraEnabled ? 'Camera On' : 'Camera Off';
+  cameraToggle.textContent = cameraEnabled ? BN.camera.on : BN.camera.off;
   video.style.opacity = cameraEnabled ? 1 : 0.3;
 });
 
