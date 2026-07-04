@@ -62,10 +62,35 @@ Models are downloaded automatically on first run (~2.6 GB for Gemma 4 E2B, plus 
 
 ## Configuration
 
-| Variable     | Default                        | Description                                    |
-| ------------ | ------------------------------ | ---------------------------------------------- |
-| `MODEL_PATH` | auto-download from HuggingFace | Path to a local `gemma-4-E2B-it.litertlm` file |
-| `PORT`       | `8000`                         | Server port                                    |
+| Variable           | Default                        | Description                                                                 |
+| ------------------ | ------------------------------ | --------------------------------------------------------------------------- |
+| `MODEL_PATH`       | auto-download from HuggingFace | Path to a local `gemma-4-E2B-it.litertlm` file                              |
+| `PORT`             | `8000`                         | Server port                                                                 |
+| `AI_PROXY_URL`     | _(unset)_                      | If set, route AI replies through the Node proxy instead of the local model  |
+| `AI_PROXY_TIMEOUT` | `30`                           | Timeout (seconds) for the outbound proxy call                               |
+
+### Running without the local model (Node proxy)
+
+If your machine can't run the on-device Gemma model, you can generate replies through
+the standalone Node.js AI proxy in [`services/ai-proxy/`](services/ai-proxy/) instead.
+The proxy is text-only, so audio/image inputs are not understood in this mode — it's
+intended for text turns and evaluation.
+
+```bash
+# 1. Start the proxy (see services/ai-proxy/README.md for provider config)
+cd services/ai-proxy
+npm install
+cp .env.example .env   # fill in AI_PROVIDER_BASE_URL, AI_API_KEY, AI_MODEL
+npm start              # listens on http://localhost:3000
+
+# 2. Start FastAPI pointed at the proxy (the local model is not loaded)
+cd ../../src
+AI_PROXY_URL=http://localhost:3000 uv run server.py
+```
+
+If the proxy is unreachable or errors, the app returns a friendly Bengali fallback
+message and keeps the conversation open. Unset `AI_PROXY_URL` to restore the
+on-device model path.
 
 ## Performance (Apple M3 Pro)
 
