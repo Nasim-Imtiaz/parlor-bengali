@@ -34,11 +34,25 @@ def resolve_model_path() -> str:
 
 
 MODEL_PATH = resolve_model_path()
+
+# Single source of truth for the assistant's output language. Referenced by the
+# system prompt, the per-turn instructions, and the respond_to_user tool schema so
+# the Bengali default still applies on the raw-text fallback path and survives a
+# future model/provider swap. It pins the *response* language only — transcription
+# stays faithful to whatever language the user actually spoke.
+BENGALI_DIRECTIVE = (
+    "Always write your response to the user in natural, conversational, professional "
+    "Bangladeshi Bengali (বাংলা). Sound warm, helpful, and human — never like a "
+    "word-for-word machine translation. This applies to your response only; still "
+    "transcribe exactly what the user said in whatever language they actually spoke."
+)
+
 SYSTEM_PROMPT = (
     "You are a friendly, conversational AI assistant. The user is talking to you "
     "through a microphone and showing you their camera. "
     "You MUST always use the respond_to_user tool to reply. "
-    "First transcribe exactly what the user said, then write your response."
+    "First transcribe exactly what the user said, then write your response. "
+    + BENGALI_DIRECTIVE
 )
 
 SENTENCE_SPLIT_RE = re.compile(r'(?<=[.!?])\s+')
@@ -93,8 +107,8 @@ async def websocket_endpoint(ws: WebSocket):
         """Respond to the user's voice message.
 
         Args:
-            transcription: Exact transcription of what the user said in the audio.
-            response: Your conversational response to the user. Keep it to 1-4 short sentences.
+            transcription: Exact transcription of what the user said in the audio, in whatever language they spoke.
+            response: Your conversational response to the user, written in Bengali. Keep it to 1-4 short sentences.
         """
         tool_result["transcription"] = transcription
         tool_result["response"] = response
@@ -140,13 +154,13 @@ async def websocket_endpoint(ws: WebSocket):
                 content.append({"type": "image", "blob": msg["image"]})
 
             if msg.get("audio") and msg.get("image"):
-                content.append({"type": "text", "text": "The user just spoke to you (audio) while showing their camera (image). Respond to what they said, referencing what you see if relevant."})
+                content.append({"type": "text", "text": "The user just spoke to you (audio) while showing their camera (image). Respond to what they said, referencing what you see if relevant. " + BENGALI_DIRECTIVE})
             elif msg.get("audio"):
-                content.append({"type": "text", "text": "The user just spoke to you. Respond to what they said."})
+                content.append({"type": "text", "text": "The user just spoke to you. Respond to what they said. " + BENGALI_DIRECTIVE})
             elif msg.get("image"):
-                content.append({"type": "text", "text": "The user is showing you their camera. Describe what you see."})
+                content.append({"type": "text", "text": "The user is showing you their camera. Describe what you see. " + BENGALI_DIRECTIVE})
             else:
-                content.append({"type": "text", "text": msg.get("text", "Hello!")})
+                content.append({"type": "text", "text": msg.get("text", "হ্যালো! কেমন আছেন?")})
 
             # LLM inference
             t0 = time.time()
